@@ -1,6 +1,6 @@
 # nanoGPT - Transformer from Scratch
 
-nanoGPT is a stripped down transformer library made for clarity and transparency. This project is to show the mechanisms in a transformer using numpy only, it is for students and hobby learners that are interested in generative ML.
+nanoGPT is a stripped down transformer library made for clarity and transparency. This project is to show the mechanisms in a transformer using numpy only, it is for students and hobby learners that are interested in generative AI.
 
 ## Features
 
@@ -17,6 +17,12 @@ nanoGPT is a stripped down transformer library made for clarity and transparency
 - Experiment with different hyperparameters
 - Compare performance across configurations
 
+## Dependencies
+ 
+- NumPy
+- [ReverseGrad](https://github.com/Lucien2468/ReverseGrad) - Custom autograd engine
+- [White-Box-ML](https://github.com/Lucien2468/White-Box-ML) - A transparent, interpretable machine learning library
+- No Pytorch or Tensorflow needed.
 ## Architecture
 
 ### Model Overview
