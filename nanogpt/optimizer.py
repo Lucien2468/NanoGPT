@@ -10,8 +10,8 @@ class Optimizer:
         self.embedding = self.model.embedding
         self.projection = self.model.projection
     def step(self, lr):
-        self.embedding.weights -= Tensor(lr * self.embedding.weights.grad)
-        self.projection.weights -= Tensor(lr * self.projection.weights.grad)
+        self.embedding.weights.data -= lr * self.embedding.weights.grad
+        self.projection.weights.data -= lr * self.projection.weights.grad
         for block in self.layers:
             attention = block.attention
             for head in attention.attn_heads:
