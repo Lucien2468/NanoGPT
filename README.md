@@ -81,11 +81,13 @@ Methods implemented include: `__add__`, `__sub__`, `__mul__`, `__truediv__`, `__
 
 ### Technical Challenges Solved
 
-I found that memory was increasing steeply during training. Initially, I tried deleting x, y, loss, and output, but it failed because of circular references. Then I discovered I was adding attn_heads every time forward() was called, so I fixed that. I also discovered circular references and broke them by using `del` and then `gc.collect()` to clear them. Now memory still increases but at a much slower rate.
+- _unbroadcast resolves broadcast backward issue;
+- Bugs accumulated in `attn_heads` during forward calls by `optimizer.step()` creating a new Tensor;
+- Discovery and fix of missing causal masks
 
-_unbroadcast resolves broadcast backward issue;
-Bugs accumulated in `attn_heads` during forward calls by `optimizer.step()` creating a new Tensor;
-Discovery and fix of missing causal masks
+### Memory Managements
+
+I found that memory was increasing steeply during training. Initially, I tried deleting x, y, loss, and output, but it failed because of circular references. Then I discovered I was adding attn_heads every time forward() was called, so I fixed that. I also discovered circular references and broke them by using `del` and then `gc.collect()` to clear them. Now memory still increases but at a much slower rate.
 
 ## Known Limitations
 
