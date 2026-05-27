@@ -33,8 +33,8 @@ Takes token indices as input and outputs logits. The model processes tokens thro
 
 For optimal performance with limited RAM, recommended configuration:
 - Embedding dimension: 384
-- Number of layers: 2
-- Number of attention heads: 2
+- Number of layers: 4
+- Number of attention heads: 4
 - Vocabulary size: ~12,000
 - Context window (block_size): 64
 
@@ -86,7 +86,6 @@ See [`TECHNICAL_CHALLENGES.md](https://github.com/Lucien2468/NanoGPT/blob/main/T
 ## Known Limitations
 
 - Very simple gradient descent optimizer
-- Memory issues that will be fixed in the future
 - Very simple loss function
 
 Everything is written in simple numpy, so it's easy to fix limitations or bugs you find.
@@ -215,6 +214,8 @@ From this project, I learned the basics of backpropagation, memory handling, and
 ## Notes
 
 ReverseGrad at [ReverseGrad](https://github.com/Lucien2468/ReverseGrad) had just been updated to work with NanoGPT. The code for NanoGPT will not work without the update.
+
+**All memory problems have been solved**
 
 ## Developer
 

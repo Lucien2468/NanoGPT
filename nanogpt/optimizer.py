@@ -15,18 +15,17 @@ class Optimizer:
         for block in self.layers:
             attention = block.attention
             for head in attention.attn_heads:
-                head.weight_Q -= Tensor(lr * head.weight_Q.grad)
-                head.weight_V -= Tensor(lr * head.weight_V.grad)
-                head.weight_K -= Tensor(lr * head.weight_K.grad)
+                head.weight_Q.data -= lr * head.weight_Q.grad
+                head.weight_V.data -= lr * head.weight_V.grad
+                head.weight_K.data -= lr * head.weight_K.grad
             feedforward = block.feedforward
             for layer, _ in feedforward.model.layers:
-                layer.weights -= Tensor(lr * layer.weights.grad)
-
-                layer.biases  -= Tensor(lr * layer.biases.grad)
-            block.layernorm1.gamma -= Tensor(lr * block.layernorm1.gamma.grad)
-            block.layernorm1.beta -= Tensor(lr * block.layernorm1.beta.grad)
-            block.layernorm2.gamma -= Tensor(lr * block.layernorm2.gamma.grad)
-            block.layernorm2.beta -= Tensor(lr * block.layernorm2.beta.grad)
+                layer.weights.data -= lr * layer.weights.grad
+                layer.biases.data -= lr * layer.biases.grad
+            block.layernorm1.gamma.data -= lr * block.layernorm1.gamma.grad
+            block.layernorm1.beta.data -= lr * block.layernorm1.beta.grad
+            block.layernorm2.gamma.data -= lr * block.layernorm2.gamma.grad
+            block.layernorm2.beta.data -= lr * block.layernorm2.beta.grad
     def zero_grad(self):
         self.embedding.weights.grad = np.zeros_like(self.embedding.weights.data)
         self.projection.weights.grad = np.zeros_like(self.projection.weights.data)
