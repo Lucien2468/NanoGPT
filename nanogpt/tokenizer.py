@@ -16,10 +16,10 @@ class Indicer:
         np.save(path_to_indices, {})  # Initialize with an empty dictionary
         self.map = np.load(path_to_indices, allow_pickle=True).item() if os.path.exists(path_to_indices) else {}
     def fit(self, tokens):
-        unique_tokens = set(tokens)
-        for i, token in enumerate(unique_tokens):
+        unique_ordered = unique_ordered = [item for item, count in Counter(tokens).most_common()]
+        for i, token in enumerate(list(unique_ordered)):
             if i < self.vocab_size:
-                self.map[token] = i
+                self.map[token] = i+1
         np.save("D:/NanoGPT/data/indices.npy", self.map)
     def encode(self, tokens):
         return [self.map.get(token, 0) for token in tokens]

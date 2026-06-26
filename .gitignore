@@ -14,7 +14,8 @@ build/
 # Generated data artifacts
 data/*.npy
 models/
-
+lab.ipynb
+lab2.ipynb
 # Virtual environments
 .venv/
 venv/
