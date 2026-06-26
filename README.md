@@ -219,7 +219,7 @@ ReverseGrad at [ReverseGrad](https://github.com/Lucien2468/ReverseGrad) had just
 
 ## Developer
 
-**Lucien** - 11 years old  
+**Lucien**
 Building transformers from scratch to understand how they work.
 
 ## License
