@@ -5,24 +5,19 @@ class AliBiPositionalEncoding:
         self.max_seq_len = max_seq_len
         self.num_heads = num_heads
         self.alibi_slopes = self._get_alibi_slopes(num_heads)
-
-    def get_positional_encoding(self, seq_len, head_idx=None):
+    def get_positional_encoding(self, seq_len, head_idx):
         if seq_len > self.max_seq_len:
             raise ValueError(f"Sequence length {seq_len} exceeds maximum {self.max_seq_len}")
-        heads = [head_idx] if head_idx is not None else range(self.num_heads)
-        n = len(heads) if head_idx is None else 1
-        alibi = np.zeros((n, seq_len, seq_len))
-        for out_idx, h in enumerate(heads):
-            slope = self.alibi_slopes[h]
-            for i in range(seq_len):
-                for j in range(i + 1):
-                    alibi[out_idx, i, j] = slope * (i - j)
-        if head_idx is not None:
-            return Tensor(alibi[0])  # shape (seq_len, seq_len)
-        return Tensor(alibi)  # shape (num_heads, seq_len, seq_len)
+        alibi = np.zeros((seq_len,seq_len))
+        for i in range(seq_len):
+            for j in range(seq_len):
+                if not j > i:
+                    alibi[i,j] = (i-j) * self.alibi_slopes[head_idx]
+        return Tensor(alibi)
+
     def _get_alibi_slopes(self, num_heads):
         slopes = []
         for i in range(num_heads):
-            slope = 1.0 / (2 ** (i / num_heads))
+            slope = 1.0 / (2 ** (i+1))
             slopes.append(slope)
         return slopes
