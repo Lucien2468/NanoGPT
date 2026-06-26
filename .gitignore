@@ -12,7 +12,9 @@ build/
 .ipynb_checkpoints/
 
 # Generated data artifacts
-data/*.npy
+data\TinyStories-train.txt
+*.txt
+*.npy
 models/
 lab.ipynb
 lab2.ipynb
