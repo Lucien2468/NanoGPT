@@ -1,4 +1,4 @@
-import numpy as np
+import cupy as cp  # was: import numpy as np
 from reversegrad import Tensor
 class AliBiPositionalEncoding:
     def __init__(self, max_seq_len, num_heads):
@@ -9,7 +9,7 @@ class AliBiPositionalEncoding:
     def get_positional_encoding(self, seq_len, head_idx):
         if seq_len > self.max_seq_len:
             raise ValueError(f"Sequence length {seq_len} exceeds maximum {self.max_seq_len}")
-        alibi = np.zeros((seq_len,seq_len))
+        alibi = cp.zeros((seq_len,seq_len))  # np.zeros → cp.zeros: ALiBi bias matrix on GPU
         for i in range(seq_len):
             for j in range(seq_len):
                 if not j > i:

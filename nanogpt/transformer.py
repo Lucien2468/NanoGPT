@@ -37,7 +37,6 @@ class Transformer:
             weights.append(attention.W_O)
             for head in attention.attn_heads: weights.extend([head.weight_Q,head.weight_V,head.weight_K])
             feedforward = block.feedforward
-            for layer, _ in feedforward.model.layers:
-                weights.extend([layer.weights,layer.biases])
+            weights.extend([feedforward.W1, feedforward.b1, feedforward.W2, feedforward.b2])  # was feedforward.model.layers loop — FeedForward now has W1/b1/W2/b2 directly
             weights.extend([block.layernorm1.gamma,block.layernorm1.beta,block.layernorm2.gamma,block.layernorm2.beta])
         return weights

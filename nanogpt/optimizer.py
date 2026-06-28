@@ -1,19 +1,19 @@
 from nanogpt.layers.layernorm import LayerNorm
-import numpy as np
+import cupy as cp  # was: import numpy as np
 class Optimizer:
     def __init__(self,model , max_iter=100):
         self.max_iter = max_iter
         self.model = model
         self.weights_adam = []
         for weight in self.model.weights:
-            m = np.zeros_like(weight.data)
-            v = np.zeros_like(weight.data)
+            m = cp.zeros_like(weight.data)  # np.zeros_like → cp.zeros_like: Adam moments on GPU
+            v = cp.zeros_like(weight.data)  # np.zeros_like → cp.zeros_like
             self.weights_adam.append((weight, m, v))
         self.time=1
     def step(self, lr,  beta1=0.9, beta2=0.999, max_norm=2.5):
         grad_norms=[]
-        for i in range(len(self.weights_adam)):grad_norms.append(np.linalg.norm(self.weights_adam[i][0].grad))
-        grad_norm = np.sqrt(np.sum(np.asarray(grad_norms)**2))
+        for i in range(len(self.weights_adam)):grad_norms.append(cp.linalg.norm(self.weights_adam[i][0].grad))  # np.linalg.norm → cp.linalg.norm
+        grad_norm = cp.sqrt(cp.sum(cp.asarray(grad_norms)**2))  # np.sqrt/np.sum/np.asarray → cp equivalents
         for i in range(len(self.weights_adam)):
             weight = self.weights_adam[i][0]
             if grad_norm > max_norm:
@@ -28,4 +28,4 @@ class Optimizer:
 
     def zero_grad(self):
         for weight in self.weights_adam:
-            weight[0].grad=np.zeros_like(weight[0].grad)
+            weight[0].grad=cp.zeros_like(weight[0].grad)  # np.zeros_like → cp.zeros_like
