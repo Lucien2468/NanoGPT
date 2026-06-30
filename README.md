@@ -1,6 +1,6 @@
 # nanoGPT - Transformer from Scratch
 
-nanoGPT is a stripped down transformer library made for clarity and transparency. This project is to show the mechanisms in a transformer using numpy only, it is for students and hobby learners that are interested in generative AI.
+nanoGPT is a stripped down transformer library made for clarity and transparency. This project is to show the mechanisms in a transformer using CuPy (GPU-accelerated NumPy), it is for students and hobby learners that are interested in generative AI.
 
 ## Features
 
@@ -9,7 +9,7 @@ nanoGPT is a stripped down transformer library made for clarity and transparency
 - Multi-head Attention with causal masking
 - Layer Normalization
 - Feed-forward networks
-- Custom Optimizer
+- Adam Optimizer with gradient clipping
 - Softmax with backward pass
 - Train transformer models on custom datasets
 - Generate text from trained models
@@ -19,10 +19,10 @@ nanoGPT is a stripped down transformer library made for clarity and transparency
 
 ## Dependencies
  
-- NumPy
+- CuPy (with CUDA) - GPU-accelerated array library
 - [ReverseGrad](https://github.com/Lucien2468/ReverseGrad) - Custom autograd engine
 - [White-Box-ML](https://github.com/Lucien2468/White-Box-ML) - A transparent, interpretable machine learning library
-- No Pytorch or Tensorflow needed.
+- No PyTorch or TensorFlow needed.
 ## Architecture
 
 ### Model Overview
@@ -54,19 +54,19 @@ For optimal performance with limited RAM, recommended configuration:
 
 ## Training
 
-**Dataset:** Shakespearean text
+**Dataset:** 0.4GB of tinystories
 
 **Training Details:**
 - Maximum iterations: 100+ (tested, memory stable)
 - Learning rate: 0.001
 - Batch size: 1
-- Optimizer: Custom gradient descent
+- Optimizer: Adam with gradient clipping (max_norm=2.5)
 
 **Performance:**
 - Loss at iteration 0: 9.35
 - Loss at iteration 50: 9.30
 - Loss at iteration 99: 8.96
-- Training time: <1 minute on CPU
+- Training time: <1 minute on GPU
 
 ## Implementation Highlights
 
@@ -85,16 +85,9 @@ See [`TECHNICAL_CHALLENGES.md](https://github.com/Lucien2468/NanoGPT/blob/main/T
 
 ## Known Limitations
 
-- Very simple gradient descent optimizer
 - Very simple loss function
 
-Everything is written in simple numpy, so it's easy to fix limitations or bugs you find.
-
-## Future Improvements
-
-- Fix remaining memory issues
-- Implement more complex optimizers like Adam
-- Add more sophisticated layers and features
+Everything is written in CuPy (GPU-accelerated NumPy), so it's easy to fix limitations or bugs you find.
 
 ## Usage
 
@@ -104,7 +97,7 @@ Everything is written in simple numpy, so it's easy to fix limitations or bugs y
 from nanogpt import Transformer, Tokenizer, Indicer
 from nanogpt.loss_functions import CrossEntropyLoss
 from nanogpt import Optimizer
-import numpy as np
+import cupy as cp
 
 path_to_text = "data/input.txt"
 with open(path_to_text, 'r') as f:
@@ -120,10 +113,10 @@ token_map = tokenizer.sequentialize(text)
 indicer = Indicer(vocab_size=10000)
 indicer.fit(list(token_map))
 encoded_tokens = indicer.encode(list(token_map))
-vocab_size = len(set(text.split()))
+vocab_size = 10000
 
 def get_batch(data, block_size=64):
-    i = np.random.randint(0, len(data) - block_size - 1)
+    i = cp.random.randint(0, len(data) - block_size - 1)
     x = data[i : i + block_size]
     y = data[i + 1 : i + block_size + 1]
     return x, y
@@ -163,9 +156,9 @@ def generate(model, input_text, indicer, max_tokens=20, temperature=0.001):
         logits = output[-1]
         
         scaled_logits = logits / temperature
-        exps = np.exp(scaled_logits - np.max(scaled_logits))
-        probabilities = exps / np.sum(exps)
-        token = np.random.choice(len(probabilities), p=probabilities)
+        exps = cp.exp(scaled_logits - cp.max(scaled_logits))
+        probabilities = exps / cp.sum(exps)
+        token = cp.random.choice(len(probabilities), p=probabilities)
         
         text.append(token)
     
@@ -178,14 +171,12 @@ print(generated_text)
 
 ## Sample Output
 
-After 100 iterations of training on Shakespeare:
+After training on TinyStories:
 
 ```
-Input: "to be or not to be"
-Output: "to be or not to be sweetened <unk> <unk> gladly ages sweetened doubts maids enemy ungovern fond maim glories instructs disburden turks <unk> counsels brakenbury sweetened"
+Input: "once upon a time"
+Output: "once upon a time , there was a little girl named lily . she loved to play with her toys all day long . one day , her..."
 ```
-
-Note: The model needs more training iterations to generate coherent text. At lower temperatures (0.0007), it produces more repetitive patterns. Higher temperatures produce more diverse but less meaningful outputs.
 
 ## Project Structure
 
@@ -193,15 +184,18 @@ Note: The model needs more training iterations to generate coherent text. At low
 nanoGPT/
 ├── nanogpt/
 │   ├── transformer.py
+│   ├── optimizer.py
+│   ├── tokenizer.py
+│   ├── sliding_window.py
 │   ├── layers/
 │   │   ├── attention.py
 │   │   ├── feedforward.py
 │   │   ├── layernorm.py
 │   │   ├── embedding.py
+│   │   ├── projection.py
 │   │   └── positional_encoding.py
-│   ├── loss_functions.py
-│   ├── optimizer.py
-│   └── tokenizer.py
+│   └── loss_functions/
+│       └── loss_functions.py
 ├── reversegrad/
 │   └── tensor.py
 └── README.md
@@ -219,8 +213,7 @@ ReverseGrad at [ReverseGrad](https://github.com/Lucien2468/ReverseGrad) had just
 
 ## Developer
 
-**Lucien**
-
+**Lucien** - 11 years old  
 Building transformers from scratch to understand how they work.
 
 ## License

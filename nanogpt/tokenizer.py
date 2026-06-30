@@ -1,5 +1,5 @@
 import os
-
+from collections import Counter
 import numpy as np
 class Tokenizer:
     def __init__(self, vocab_size):
