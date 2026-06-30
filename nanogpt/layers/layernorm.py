@@ -1,12 +1,12 @@
 
-import numpy as np
+import cupy as cp  # was: import numpy as np
 from reversegrad import Tensor
 class LayerNorm:
     def __init__(self, embed_dim, eps=1e-5):
         self.embed_dim = embed_dim
-        self.eps = np.asarray(eps)
-        self.gamma = Tensor(np.ones((1, embed_dim)))
-        self.beta = Tensor(np.zeros((1, embed_dim)))
+        self.eps = cp.asarray(eps)           # np.asarray → cp.asarray
+        self.gamma = Tensor(cp.ones((1, embed_dim)))   # np.ones → cp.ones
+        self.beta = Tensor(cp.zeros((1, embed_dim)))   # np.zeros → cp.zeros
     def forward(self, x):
         x = x if hasattr(x, 'data') else Tensor(x)
         self.x = x
