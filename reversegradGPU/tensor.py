@@ -1,5 +1,5 @@
 import cupy as cp  # was: import numpy as np — swap entire library to GPU arrays
-
+import warnings
 def _unbroadcast(grad, shape):
     while grad.ndim > len(shape):
         grad = grad.sum(axis=0)
@@ -9,8 +9,8 @@ def _unbroadcast(grad, shape):
     return grad
 
 class Tensor:
-    def __init__(self, data):
-        self.data = cp.asarray(data, dtype=float)  # np.asarray → cp.asarray: puts array on GPU
+    def __init__(self, data, dtype='float32'):
+        self.data = cp.asarray(data, dtype=dtype)  # np.asarray → cp.asarray: puts array on GPU
         self.grad = cp.zeros_like(self.data)        # np.zeros_like → cp.zeros_like: grad lives on GPU too
         self._backward = lambda: None
         self._children = []
@@ -26,6 +26,7 @@ class Tensor:
         return out
 
     def __sub__(self, other):
+        other = Tensor(other) if not isinstance(other, Tensor) else other
         out = Tensor(self.data - other.data)
         def _backward():
             self.grad += _unbroadcast(out.grad, self.data.shape)
@@ -35,6 +36,7 @@ class Tensor:
         return out
 
     def __mul__(self, other):
+        other = Tensor(other) if not isinstance(other, Tensor) else other
         out = Tensor(self.data * other.data)
         def _backward():
             self.grad += _unbroadcast(out.grad * other.data, self.data.shape)
@@ -44,6 +46,7 @@ class Tensor:
         return out
 
     def __matmul__(self, other):
+        other = Tensor(other) if not isinstance(other, Tensor) else other
         out = Tensor(self.data @ other.data)
         def _backward():
             self.grad += out.grad @ cp.swapaxes(other.data, -1, -2)  # np.swapaxes → cp.swapaxes
@@ -54,6 +57,7 @@ class Tensor:
         return out
 
     def __pow__(self, other):
+        other = Tensor(other) if not isinstance(other, Tensor) else other
         out = Tensor(self.data ** other.data)
         def _backward():
             self.grad += out.grad * other.data * self.data ** (other.data - 1)
@@ -61,7 +65,20 @@ class Tensor:
         out._backward = _backward
         out._children = [self, other]
         return out
-
+    def cos(self):
+        out = Tensor(cp.cos(self.data))
+        def _backward():
+            self.grad += out.grad * -cp.sin(self.data)
+        out._backward = _backward
+        out._children = [self]
+        return out
+    def sin(self):
+        out = Tensor(cp.sin(self.data))
+        def _backward():
+            self.grad += out.grad * cp.cos(self.data)
+        out._backward = _backward
+        out._children = [self]
+        return out
     def clip(self, min, max):
         out = Tensor(cp.clip(self.data, min, max))  # np.clip → cp.clip
         def _backward():
@@ -71,6 +88,7 @@ class Tensor:
         return out
 
     def min(self, other):
+        other = Tensor(other) if not isinstance(other, Tensor) else other
         out = Tensor(cp.minimum(self.data, other.data))  # np.minimum → cp.minimum
         def _backward():
             self.grad += out.grad * cp.where(out.data == self.data, 1, 0)  # np.where → cp.where
@@ -88,11 +106,12 @@ class Tensor:
         return out
 
     def __truediv__(self, other):
+        other = Tensor(other) if not isinstance(other, Tensor) else other
         out = Tensor(self.data / other.data)
         def _backward():
             other_data = cp.asarray(other.data)  # np.asarray → cp.asarray
             self.grad += out.grad / other_data
-            other.grad -= out.grad * self.data / other_data**2 if other_data.shape == () else _unbroadcast(out.grad * self.data / other_data**2, other_data.shape)
+            other.grad -= _unbroadcast(out.grad * self.data / other_data**2, other_data.shape)
         out._backward = _backward
         out._children = [self, other]
         return out
@@ -154,8 +173,11 @@ class Tensor:
         return out
 
     def concat(self, *tensors, axis=0):
+        for t in tensors:
+            if not isinstance(t, Tensor):
+                warnings.warn(f"concat received a non-Tensor argument ({type(t)}); its gradient will not be tracked.")
         data = [self.data] + [t.data if isinstance(t, Tensor) else t for t in tensors]
-        out = Tensor(cp.concatenate(data, axis=axis))  # np.concatenate → cp.concatenate
+        out = Tensor(cp.concatenate(data, axis=axis))
         def _backward():
             start = 0
             for t in [self] + [t for t in tensors if isinstance(t, Tensor)]:
@@ -167,8 +189,7 @@ class Tensor:
         return out
 
     def append(self, other, axis=None):
-        if not isinstance(other, Tensor):
-            other = Tensor(other)
+        if not isinstance(other, Tensor): other = Tensor(other)
         new_data = cp.append(self.data, other.data, axis=axis)  # np.append → cp.append
         out = Tensor(new_data)
         def _backward():
@@ -201,7 +222,7 @@ class Tensor:
         return out
 
     def __getitem__(self, idx):
-        idx = idx.data if hasattr(idx, "data") else idx
+        idx = idx.data if isinstance(idx, Tensor) else idx
         out = Tensor(self.data[idx])
         def _backward():
             if not isinstance(self.grad, cp.ndarray):  # np.ndarray → cp.ndarray
@@ -218,15 +239,21 @@ class Tensor:
         out._backward = _backward
         out._children = [self]
         return out
-
-    def backward(self, grad=1, clear_children=False):
+    def sigmoid(self):
+        out = Tensor(1 / (1 + cp.exp(-self.data)))
+        def _backward():
+            self.grad += out.grad * out.data * (1 - out.data)
+        out._backward = _backward
+        out._children = [self]
+        return out
+    def backward(self, grad=1):
         self.grad += grad
         topo = []
-        visited = list()
+        visited = set()
 
         def build_topo(node):
             if id(node) not in visited:
-                visited.append(id(node))
+                visited.add(id(node))
                 for child in node._children:
                     build_topo(child)
                 topo.append(node)
@@ -235,5 +262,41 @@ class Tensor:
 
         for i, node in enumerate(reversed(topo)):
             node._backward()
-        if clear_children:
-            node._children = []
+def check_gradient(func, inputs, eps=1):
+    for t in inputs:
+        t.grad = cp.zeros_like(t.grad)
+    func(*inputs).sum().backward()
+    for t in inputs:
+        for i in range(t.data.size):
+            coord_tuple = cp.unravel_index(cp.asarray(i), t.data.shape)
+            t.data[coord_tuple] += eps; hi = float(func(*inputs).sum().data)
+            t.data[coord_tuple] -= 2*eps; lo = float(func(*inputs).sum().data)
+            t.data[coord_tuple] += eps
+            print("analytical:", float(t.grad.reshape(-1)[i]), "numerical:", (hi-lo)/(2*eps))
+'''
+a = Tensor(cp.reshape((cp.arange(1,13)), (3,4)))
+b = Tensor(cp.reshape((cp.arange(2,8)), (3,2)))
+c = Tensor(cp.reshape((cp.arange(2,8)), (2,3)))
+def f_add(a,b):
+    return a+b
+def f_sub(a,b):
+    return a-b
+def f_mul(a,b):
+    return a*b
+def f_div(a,b):
+    return a/b
+def f_pow(a,b):
+    return a ** b
+def f_matmul(a,b):
+    return a @ b
+def f_softmax(a,b):
+    return a.softmax() * b
+def f_var(a):
+    return a.var()
+def f_mean(a, b):
+    return a.mean() * b
+d = Tensor(cp.reshape((cp.arange(1,25)), (2,3,4)))
+e = Tensor(cp.reshape((cp.arange(1,25)), (2,3,4)))
+
+check_gradient(lambda a,b: a.concat(b, axis=-1), [d,e])
+'''
