@@ -1,6 +1,6 @@
 import cupy as cp  # was: import numpy as np
 import numpy as np
-from reversegrad import Tensor
+from reversegradGPU import Tensor
 class Embedding:
     def __init__(self, vocab_size, embed_dim):
         self.weights = Tensor(cp.random.randn(vocab_size, embed_dim) * 0.01)  # np.random.randn → cp.random.randn

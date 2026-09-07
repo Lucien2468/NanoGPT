@@ -1,4 +1,4 @@
-from nanogpt.layers.layernorm import LayerNorm
+from nanogpt.layers.normalization import LayerNorm
 import cupy as cp  # was: import numpy as np
 class Optimizer:
     def __init__(self,model , max_iter=100):

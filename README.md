@@ -4,7 +4,7 @@ nanoGPT is a stripped down transformer library made for clarity and transparency
 
 ## Features
 
-- Custom autograd engine (ReverseGrad)
+- Custom autograd engine (reversegradGPU)
 - Embedding & Projection layers
 - Multi-head Attention with causal masking
 - Layer Normalization
@@ -20,7 +20,7 @@ nanoGPT is a stripped down transformer library made for clarity and transparency
 ## Dependencies
  
 - CuPy (with CUDA) - GPU-accelerated array library
-- [ReverseGrad](https://github.com/Lucien2468/ReverseGrad) - Custom autograd engine
+- [reversegradGPU](https://github.com/Lucien2468/reversegradGPU) - Custom autograd engine
 - [White-Box-ML](https://github.com/Lucien2468/White-Box-ML) - A transparent, interpretable machine learning library
 - No PyTorch or TensorFlow needed.
 ## Architecture
@@ -72,7 +72,7 @@ For optimal performance with limited RAM, recommended configuration:
 
 ### Custom Autograd
 
-Autograd (ReverseGrad) contains a Tensor class that stores:
+Autograd (reversegradGPU) contains a Tensor class that stores:
 - **data** attribute: the actual data (float, numpy array, etc.)
 - **gradient** attribute: automatically updated during operations
 - **_children** attribute: stores the outputs of operations
@@ -196,7 +196,7 @@ nanoGPT/
 │   │   └── positional_encoding.py
 │   └── loss_functions/
 │       └── loss_functions.py
-├── reversegrad/
+├── reversegradGPU/
 │   └── tensor.py
 └── README.md
 ```
@@ -207,7 +207,7 @@ From this project, I learned the basics of backpropagation, memory handling, and
 
 ## Notes
 
-ReverseGrad at [ReverseGrad](https://github.com/Lucien2468/ReverseGrad) had just been updated to work with NanoGPT. The code for NanoGPT will not work without the update.
+reversegradGPU at [reversegradGPU](https://github.com/Lucien2468/reversegradGPU) had just been updated to work with NanoGPT. The code for NanoGPT will not work without the update.
 
 **All memory problems have been solved**
 

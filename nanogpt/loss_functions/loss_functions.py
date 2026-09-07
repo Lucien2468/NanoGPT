@@ -1,21 +1,26 @@
 import cupy as cp  # was: import numpy as np
-from reversegrad import Tensor
+from reversegradGPU import Tensor
 class CrossEntropyLoss:
-    def forward(self, predictions, targets):
+    def forward(self, predictions, targets, mask = None):
+        self.batch_size = Tensor(float(predictions.data.shape[0])) if predictions.data.ndim == 3 else 1
+        self.seq_len = Tensor(float(predictions.data.shape[1 if predictions.data.ndim == 3 else 0]))
+        denominator = self.seq_len * self.batch_size
+        if isinstance(mask, cp.ndarray):
+            denominator = Tensor(float(mask.size - cp.count_nonzero(mask == 0)))
+        self.loss = self.forward_seq(predictions, targets, mask).sum() / denominator
+        return self.loss
+    def forward_seq(self, predictions, targets, mask = None):
         self.targets = targets
         self.predictions = predictions.softmax()
-        self.targets = targets
         self.batch_size = Tensor(float(predictions.data.shape[0])) if predictions.data.ndim == 3 else 1
         self.seq_len = Tensor(float(predictions.data.shape[1 if predictions.data.ndim == 3 else 0]))
         seq_indices = cp.arange(predictions.data.shape[1 if predictions.data.ndim == 3 else 0])[None, :]  # np.arange → cp.arange: index array on GPU
         batch_indices = cp.arange(predictions.data.shape[0])[:, None] if predictions.data.ndim == 3 else None  # np.arange → cp.arange
         if batch_indices is None:
-            self.loss = (Tensor(cp.asarray(0.0)) - self.predictions[seq_indices, targets].log()).sum() / self.seq_len  # np.asarray → cp.asarray
+            self.loss = Tensor(cp.asarray(0.0)) - self.predictions[seq_indices, targets].log()
         else:
-            self.loss = (Tensor(cp.asarray(0.0)) - self.predictions[batch_indices, seq_indices, targets].log()).sum() / (self.batch_size * self.seq_len)  # np.asarray → cp.asarray
-        return self.loss
-
-
+            self.loss = Tensor(cp.asarray(0.0)) - self.predictions[batch_indices, seq_indices, targets].log()
+        return self.loss * mask if isinstance(mask, cp.ndarray) else self.loss
 def grad_check(loss_fn, pred_data, targets, eps=1e-4, rtol=1e-3):
     pred_data = cp.asarray(pred_data, dtype=float)
     n = pred_data.size

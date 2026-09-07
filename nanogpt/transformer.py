@@ -1,5 +1,5 @@
 import numpy as np
-from nanogpt.layers.layernorm import LayerNorm
+from nanogpt.layers.normalization import LayerNorm, RMSNorm
 from nanogpt.layers.attention import MultiHeadAttention
 from nanogpt.layers.feedforward import FeedForward
 from nanogpt.layers.embedding import Embedding
@@ -9,18 +9,24 @@ import cupy as cp
 def sync():
     cp.cuda.Stream.null.synchronize()
 class TransformerBlock:
-
-    def __init__(self, embed_dim, num_heads, ff_expand):
-
-        self.attention = MultiHeadAttention(embed_dim, num_heads)
-        self.layernorm1 = LayerNorm(embed_dim)
-        self.feedforward = FeedForward(embed_dim, ff_expand)
-        self.layernorm2 = LayerNorm(embed_dim)
+    def __init__(self, embed_dim, num_heads, ff_expand, rope = True, pre_ln = False, rms = True, swiglu = False):
+        self.pre_ln = pre_ln
+        self.attention = MultiHeadAttention(embed_dim, num_heads, rope)
+        normalization = LayerNorm if not rms else RMSNorm
+        self.normalization1 = normalization(embed_dim)
+        self.feedforward = FeedForward(embed_dim, ff_expand, swiglu=swiglu)
+        self.normalization2 = normalization(embed_dim)
     def forward(self, x):
-        attn_output = self.attention.forward(x)
-        x = self.layernorm1.forward(x + attn_output)
-        ff_output = self.feedforward.forward(x)
-        x = self.layernorm2.forward(x + ff_output)
+        if self.pre_ln:
+            attn_output = self.attention.forward(self.normalization1.forward(x))
+            x = x + attn_output
+            ff_output = self.feedforward.forward(self.normalization2.forward(x))
+            x = x + ff_output
+        else:
+            attn_output = self.attention.forward(x)
+            x = self.normalization1.forward(x + attn_output)
+            ff_output = self.feedforward.forward(x)
+            x = self.normalization2.forward(x + ff_output)
         return x
 
     # Temporarily replace your TransformerBlock.forward with this instrumented version,
@@ -52,16 +58,19 @@ class TransformerBlock:
         sync(); print(f"  layernorm2:  {time.perf_counter()-t:.4f}s")
         return x
 class Transformer:
-    def __init__(self, vocab_size, embed_dim, num_heads, ff_expand, num_layers):
+    def __init__(self, vocab_size, embed_dim, num_heads, ff_expand, num_layers, rope = True, pre_ln = False, rms = True, swiglu = False):
+        self.rms = rms
+        self.pre_ln = pre_ln
         self.embedding = Embedding(vocab_size, embed_dim)
         self.projection = OutputProjection(embed_dim, vocab_size)
-        self.layers = [TransformerBlock(embed_dim, num_heads, ff_expand) for _ in range(num_layers)]
+        self.layers = [TransformerBlock(embed_dim, num_heads, ff_expand, rope, pre_ln, rms, swiglu) for _ in range(num_layers)]
+        if pre_ln: self.projection_LN = LayerNorm(embed_dim) if not rms else RMSNorm(embed_dim)
         self.weights=self._get_weights()
     def forward(self, x):
         x = self.embedding.forward(x)
         for layer in self.layers:
             x = layer.forward(x)
-        x = self.projection.forward(x)
+        x = self.projection.forward(self.projection_LN.forward(x) if self.pre_ln else x)
         return x
     def _get_weights(self):
         weights=[]
@@ -71,6 +80,7 @@ class Transformer:
             weights.append(attention.W_O)
             for head in attention.attn_heads: weights.extend([head.weight_Q,head.weight_V,head.weight_K])
             feedforward = block.feedforward
-            weights.extend([feedforward.W1, feedforward.b1, feedforward.W2, feedforward.b2])  # was feedforward.model.layers loop — FeedForward now has W1/b1/W2/b2 directly
-            weights.extend([block.layernorm1.gamma,block.layernorm1.beta,block.layernorm2.gamma,block.layernorm2.beta])
+            weights.extend(feedforward.get_weights())
+            weights.extend(block.normalization1.get_weights()+block.normalization2.get_weights())
+        if self.pre_ln: weights.extend(self.projection_LN.get_weights())
         return weights

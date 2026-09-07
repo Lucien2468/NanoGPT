@@ -1,7 +1,7 @@
-from .attention import MultiHeadAttention
+from .attention import MultiHeadAttention, Attention
 from .embedding import Embedding
 from .feedforward import FeedForward
-from .layernorm import LayerNorm
+from .normalization import LayerNorm, RMSNorm
 from .projection import OutputProjection
 from .positional_encoding import AliBiPositionalEncoding
-__all__ = ['MultiHeadAttention', 'Embedding', 'FeedForward', 'LayerNorm', 'OutputProjection', 'AliBiPositionalEncoding']
+__all__ = ['MultiHeadAttention', 'Embedding', 'FeedForward', 'LayerNorm', 'OutputProjection', 'AliBiPositionalEncoding', 'Attention', 'RMSNorm']
