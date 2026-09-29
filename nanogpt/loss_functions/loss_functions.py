@@ -21,6 +21,10 @@ class CrossEntropyLoss:
         else:
             self.loss = Tensor(cp.asarray(0.0)) - self.predictions[batch_indices, seq_indices, targets].log()
         return self.loss * mask if isinstance(mask, cp.ndarray) else self.loss
+class BradleyTerryLoss:
+    def forward(self, r_good, r_bad):
+        return Tensor(cp.asarray(0.0)) - (r_good-r_bad).sigmoid().log().mean()
+
 def grad_check(loss_fn, pred_data, targets, eps=1e-4, rtol=1e-3):
     pred_data = cp.asarray(pred_data, dtype=float)
     n = pred_data.size

@@ -12,9 +12,12 @@ build/
 .ipynb_checkpoints/
 
 # Generated data artifacts
-data/
-logs/
-models/
+data/*
+logs/*
+models/*
+!data/.gitkeep
+!logs/.gitkeep
+!models/.gitkeep
 lab.ipynb
 lab2.ipynb
 # Virtual environments
@@ -29,3 +32,6 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+lab.ipynb
+slice_2.ipynb

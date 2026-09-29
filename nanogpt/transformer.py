@@ -58,20 +58,21 @@ class TransformerBlock:
         sync(); print(f"  layernorm2:  {time.perf_counter()-t:.4f}s")
         return x
 class Transformer:
-    def __init__(self, vocab_size, embed_dim, num_heads, ff_expand, num_layers, rope = True, pre_ln = False, rms = True, swiglu = False):
+    def __init__(self, vocab_size, embed_dim, num_heads, ff_expand, num_layers, rope = True, pre_ln = False, rms = True, swiglu = False, reward_model = False):
+        self.reward_model = reward_model
         self.rms = rms
         self.pre_ln = pre_ln
         self.embedding = Embedding(vocab_size, embed_dim)
-        self.projection = OutputProjection(embed_dim, vocab_size)
+        self.projection = OutputProjection(embed_dim, vocab_size, reward_model = reward_model)
         self.layers = [TransformerBlock(embed_dim, num_heads, ff_expand, rope, pre_ln, rms, swiglu) for _ in range(num_layers)]
         if pre_ln: self.projection_LN = LayerNorm(embed_dim) if not rms else RMSNorm(embed_dim)
         self.weights=self._get_weights()
-    def forward(self, x):
+    def forward(self, x, original_seq_len = None):
         x = self.embedding.forward(x)
         for layer in self.layers:
             x = layer.forward(x)
         x = self.projection.forward(self.projection_LN.forward(x) if self.pre_ln else x)
-        return x
+        return x if not self.reward_model else x[range(x.data.shape[0]), original_seq_len, :] if original_seq_len is not None else x[..., -1, :]
     def _get_weights(self):
         weights=[]
         weights.extend([self.embedding.weights, self.projection.weights])

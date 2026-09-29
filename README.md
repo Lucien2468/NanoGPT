@@ -16,13 +16,13 @@ nanoGPT is a stripped down transformer library made for clarity and transparency
 - Inspect internals of each layer
 - Experiment with different hyperparameters
 - Compare performance across configurations
+- SFT and reward training, see `SFT_UPDATE.md`
 
 ## Dependencies
  
 - CuPy (with CUDA) - GPU-accelerated array library
-- [reversegradGPU](https://github.com/Lucien2468/reversegradGPU) - Custom autograd engine
-- [White-Box-ML](https://github.com/Lucien2468/White-Box-ML) - A transparent, interpretable machine learning library
 - No PyTorch or TensorFlow needed.
+
 ## Architecture
 
 ### Model Overview
@@ -32,11 +32,11 @@ Takes token indices as input and outputs logits. The model processes tokens thro
 ### Specifications
 
 For optimal performance with limited RAM, recommended configuration:
-- Embedding dimension: 384
-- Number of layers: 4
-- Number of attention heads: 4
+- Embedding dimension: 768
+- Number of layers: 8
+- Number of attention heads: 6
 - Vocabulary size: ~12,000
-- Context window (block_size): 64
+- Context window (block_size): 256
 
 (All values are tunable based on available resources)
 
@@ -57,15 +57,14 @@ For optimal performance with limited RAM, recommended configuration:
 **Dataset:** 0.4GB of tinystories
 
 **Training Details:**
-- Maximum iterations: 100+ (tested, memory stable)
-- Learning rate: 0.001
-- Batch size: 1
+- Learning rate: 0.0002
+- Batch size: 3
 - Optimizer: Adam with gradient clipping (max_norm=2.5)
 
 **Performance:**
-- Loss at iteration 0: 9.35
-- Loss at iteration 50: 9.30
-- Loss at iteration 99: 8.96
+- Loss at iteration 0: 9.3
+- Loss at iteration 50: 8.5
+- Loss at iteration 99: 7
 - Training time: <1 minute on GPU
 
 ## Implementation Highlights
@@ -85,90 +84,13 @@ See [`TECHNICAL_CHALLENGES.md](https://github.com/Lucien2468/NanoGPT/blob/main/T
 
 ## Known Limitations
 
-- Very simple loss function
+- The code is entirely written on python, so most of the training time is python overhead.
 
 Everything is written in CuPy (GPU-accelerated NumPy), so it's easy to fix limitations or bugs you find.
 
 ## Usage
 
-### Training
-
-```python
-from nanogpt import Transformer, Tokenizer, Indicer
-from nanogpt.loss_functions import CrossEntropyLoss
-from nanogpt import Optimizer
-import cupy as cp
-
-path_to_text = "data/input.txt"
-with open(path_to_text, 'r') as f:
-    text = f.read()
-
-text = text.lower()
-punctuation = ['.', ',', '!', '?', ';', ':', '"', "'", '(', ')', '[', ']', '{', '}', '-', '_', '/', '\\']
-for char in punctuation:
-    text = text.replace(char, ' '+char + ' ')
-
-tokenizer = Tokenizer(vocab_size=10000)
-token_map = tokenizer.sequentialize(text)
-indicer = Indicer(vocab_size=10000)
-indicer.fit(list(token_map))
-encoded_tokens = indicer.encode(list(token_map))
-vocab_size = 10000
-
-def get_batch(data, block_size=64):
-    i = cp.random.randint(0, len(data) - block_size - 1)
-    x = data[i : i + block_size]
-    y = data[i + 1 : i + block_size + 1]
-    return x, y
-
-def train_loop(model, data, iters=100, lr=0.001):
-    loss_func = CrossEntropyLoss()
-    optimizer = Optimizer(loss_func, model)
-    
-    for i in range(iters):
-        optimizer.zero_grad()
-        x, y = get_batch(data)
-        output = model.forward(x)
-        loss = loss_func.forward(output, y)
-        loss.backward()
-        optimizer.step(lr)
-        
-        print(f"Iteration {i}, loss: {loss.data}")
-        
-        del loss 
-        del output
-        del x
-        del y
-
-model = Transformer(vocab_size, 384, 2, 3072, 2)
-train_loop(model, encoded_tokens, iters=350, lr=0.001)
-```
-
-### Generation
-
-```python
-def generate(model, input_text, indicer, max_tokens=20, temperature=0.001):
-    encoded_input = indicer.encode(list(input_text))
-    text = list(encoded_input)
-    
-    for _ in range(max_tokens):
-        output = model.forward(text).data
-        logits = output[-1]
-        
-        scaled_logits = logits / temperature
-        exps = cp.exp(scaled_logits - cp.max(scaled_logits))
-        probabilities = exps / cp.sum(exps)
-        token = cp.random.choice(len(probabilities), p=probabilities)
-        
-        text.append(token)
-    
-    return indicer.decode(text)
-
-input_text = "to be or not to be"
-generated_text = generate(model, input_text, indicer, max_tokens=50, temperature=0.0007)
-print(generated_text)
-```
-
+**See nanogpt.ipynb and nanogpt_reward_model.ipynb for training base model, SFT model and reward model. Do not forget to download tinystories.txt
 ## Sample Output
 
 After training on TinyStories:
@@ -205,15 +127,9 @@ nanoGPT/
 
 From this project, I learned the basics of backpropagation, memory handling, and the layers of a transformer, especially the attention mechanism.
 
-## Notes
-
-reversegradGPU at [reversegradGPU](https://github.com/Lucien2468/reversegradGPU) had just been updated to work with NanoGPT. The code for NanoGPT will not work without the update.
-
-**All memory problems have been solved**
-
 ## Developer
 
-**Lucien** - 11 years old  
+**Lucien**
 Building transformers from scratch to understand how they work.
 
 ## License
